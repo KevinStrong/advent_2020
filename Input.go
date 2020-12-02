@@ -26,7 +26,7 @@ func ReadLinesNumbers(location string) []int {
 func ReadLines(location string) []string {
 	file, err := os.Open(location)
 	check(err)
-	defer check(file.Close())
+	defer closeFile(file)
 
 	var lines []string
 	scanner := bufio.NewScanner(file)
@@ -37,4 +37,8 @@ func ReadLines(location string) []string {
 	check(scanner.Err())
 
 	return lines
+}
+
+func closeFile(file *os.File) {
+	check(file.Close())
 }
