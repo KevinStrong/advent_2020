@@ -16,7 +16,7 @@ type PotentialPassword struct {
 func createPotentialPassword(lineOfInput string) PotentialPassword {
 	words := strings.Fields(lineOfInput)
 	password := words[2]
-	requiredLetter := string(string(words[1])[0])
+	requiredLetter := string(words[1][0])
 	requiredLetterMin, _ := strconv.Atoi(strings.Split(words[0], "-")[0])
 	requiredLetterMax, _ := strconv.Atoi(strings.Split(words[0], "-")[1])
 	fmt.Printf("Creating Password: %s; %s, %s-%s\n", password, requiredLetter, strconv.Itoa(requiredLetterMin), strconv.Itoa(requiredLetterMax))
