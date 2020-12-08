@@ -15,13 +15,13 @@ import (
 
 func main() {
 	start := time.Now()
-	fmt.Print(day1.Solve(ReadLinesNumbers("day1/input.txt")))
-	fmt.Print(day2.Solve(ReadLines("Day2/input.txt")))
-	fmt.Print(day3.Solve(ReadLines("Day3/input.txt")))
-	fmt.Print(day4.Solve(ReadLines("Day4/input.txt")))
-	fmt.Print(day5.Solve(ReadLines("Day5/input.txt")))
-	fmt.Print(day6.Solve(ReadLines("Day6/input.txt")))
-	fmt.Print(day7.Solve(ReadLines("Day7/input.txt")))
+	fmt.Println(day1.Solve(ReadLinesNumbers("day1/input.txt")))
+	fmt.Println(day2.Solve(ReadLines("Day2/input.txt")))
+	fmt.Println(day3.Solve(ReadLines("Day3/input.txt")))
+	fmt.Println(day4.Solve(ReadLines("Day4/input.txt")))
+	fmt.Println(day5.Solve(ReadLines("Day5/input.txt")))
+	fmt.Println(day6.Solve(ReadLines("Day6/input.txt")))
+	fmt.Println(day7.Solve(ReadLines("Day7/input.txt")))
 	fmt.Println(day8.Solve(ReadLines("Day8/input.txt")))
 	fmt.Printf("Execution took %s", time.Since(start))
 }
