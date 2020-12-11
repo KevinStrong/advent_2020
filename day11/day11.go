@@ -60,22 +60,50 @@ func stepBoardForward(current []string) []string {
 }
 
 func shouldEmptySeat(rowIndex int, columnIndex int, current []string) bool {
-	adjacentFilledSeats := countAdjacentSeats(rowIndex, columnIndex, current)
-	return adjacentFilledSeats >= 4
+	adjacentFilledSeats := countVisibleSeats(rowIndex, columnIndex, current)
+	return adjacentFilledSeats >= 5
 }
 
 func shouldFillSeat(rowIndex int, columnIndex int, current []string) bool {
-	adjacentFilledSeats := countAdjacentSeats(rowIndex, columnIndex, current)
+	adjacentFilledSeats := countVisibleSeats(rowIndex, columnIndex, current)
 	return adjacentFilledSeats == 0
 }
 
-func countAdjacentSeats(rowToCount int, columnToStart int, current []string) int {
+func countVisibleSeats(rowIndex int, columnIndex int, current []string) int {
+	adjacentFilledSeats := 0
+	for rowOffset := -1; rowOffset < 2; rowOffset++ {
+		for columnOffset := -1; columnOffset < 2; columnOffset++ {
+			if ignoreYourOwnSeat(rowOffset, columnOffset) {
+				foundSeat := lookForSeat(rowOffset, columnOffset, rowIndex, columnIndex, current)
+				if foundSeat == "#" {
+					adjacentFilledSeats++
+				}
+			}
+		}
+	}
+	return adjacentFilledSeats
+}
+
+func lookForSeat(rowOffset int, columnOffset int, startingRow int, startingColumn int, current []string) string {
+	currentSeat := "."
+	currentRow := startingRow + rowOffset
+	currentColumn := startingColumn + columnOffset
+	for isOnBoard(currentColumn, currentRow, current) && currentSeat == "." {
+		currentSeat = string(current[currentRow][currentColumn])
+		currentRow += rowOffset
+		currentColumn += columnOffset
+	}
+	return currentSeat
+}
+
+// countAdjacentSeats Used for part one
+func _(rowToCount int, columnToStart int, current []string) int {
 	adjacentFilledSeats := 0
 	for rowOffset := -1; rowOffset < 2; rowOffset++ {
 		for columnOffset := -1; columnOffset < 2; columnOffset++ {
 			currentRow := rowToCount + rowOffset
 			currentColumn := columnToStart + columnOffset
-			if isOnBoard(currentColumn, currentRow, current) && checkAdjacentSeats(rowOffset, columnOffset) {
+			if isOnBoard(currentColumn, currentRow, current) && ignoreYourOwnSeat(rowOffset, columnOffset) {
 				if string(current[currentRow][currentColumn]) == "#" {
 					adjacentFilledSeats++
 				}
@@ -85,7 +113,7 @@ func countAdjacentSeats(rowToCount int, columnToStart int, current []string) int
 	return adjacentFilledSeats
 }
 
-func checkAdjacentSeats(rowOffset int, columnOffset int) bool {
+func ignoreYourOwnSeat(rowOffset int, columnOffset int) bool {
 	return rowOffset != 0 || columnOffset != 0
 }
 
