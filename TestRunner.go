@@ -4,6 +4,7 @@ import (
 	"advent_2020/day1"
 	"advent_2020/day10"
 	"advent_2020/day11"
+	"advent_2020/day12"
 	"advent_2020/day2"
 	"advent_2020/day3"
 	"advent_2020/day4"
@@ -29,5 +30,6 @@ func main() {
 	fmt.Println(day9.Solve(ReadLinesNumbers("Day9/input.txt")))
 	fmt.Println(day10.Solve(ReadLinesNumbers("Day10/input.txt")))
 	fmt.Println(day11.Solve(ReadLines("Day11/input.txt")))
+	fmt.Println(day12.Solve(ReadLines("Day12/input.txt")))
 	fmt.Printf("Execution took %s", time.Since(start))
 }
