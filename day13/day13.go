@@ -2,19 +2,17 @@ package day13
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 )
 
 type BusArrivalRestriction struct {
-	busInterval int
+	busInterval      int
 	busArrivalOffset int
 }
 
-
 func Solve(input []string) int {
-	//fmt.Println(solvePartOne(input))
+	fmt.Println(solvePartOne(input))
 	return solvePartTwo(input)
 }
 
@@ -22,6 +20,7 @@ func solvePartTwo(input []string) int {
 	restrictions := buildBusArrivalRestrictions(input[1])
 	return findValidTime(restrictions)
 }
+
 // Assume restrictions are sorted in descending busInterval order
 func findValidTime(restrictions []BusArrivalRestriction) int {
 	currentIntervalJump := restrictions[0].busInterval
@@ -30,18 +29,27 @@ func findValidTime(restrictions []BusArrivalRestriction) int {
 	isCorrectInterval, numberOfMatches := isValidInterval(currentStartingTime, restrictions)
 	for !isCorrectInterval {
 		if numberOfMatches > previousNumberOfMatches {
-			currentIntervalJump = currentStartingTime
+			previousNumberOfMatches = numberOfMatches
+			currentIntervalJump = getNewIntervalJump(numberOfMatches, restrictions)
 		}
-			currentStartingTime += currentIntervalJump
+		currentStartingTime += currentIntervalJump
 		isCorrectInterval, numberOfMatches = isValidInterval(currentStartingTime, restrictions)
 	}
 	return currentStartingTime
 }
 
+func getNewIntervalJump(matches int, restrictions []BusArrivalRestriction) int {
+	factor := 1
+	for _, restriction := range restrictions[:matches] {
+		factor *= restriction.busInterval
+	}
+	return factor
+}
+
 func isValidInterval(interval int, restrictions []BusArrivalRestriction) (bool, int) {
 	fmt.Printf("Checking Interval: %d\n", interval)
 	for i, restriction := range restrictions {
-		if (interval + restriction.busArrivalOffset) % restriction.busInterval != 0 {
+		if (interval+restriction.busArrivalOffset)%restriction.busInterval != 0 {
 			fmt.Printf("Failed on :%d\n", restriction.busInterval)
 			return false, i
 		}
@@ -50,22 +58,15 @@ func isValidInterval(interval int, restrictions []BusArrivalRestriction) (bool, 
 	return true, -1
 }
 
-func sortRestrictionsByInterval(restrictions []BusArrivalRestriction) []BusArrivalRestriction {
-	sort.SliceStable(restrictions, func(i, j int) bool {
-		return restrictions[i].busInterval > restrictions[j].busInterval
-	})
-	return restrictions
-}
-
 func buildBusArrivalRestrictions(restrictionStringRaw string) []BusArrivalRestriction {
 	offset := 0
 	intervalStrings := strings.Split(restrictionStringRaw, ",")
-	arrivalRestrictions := make([]BusArrivalRestriction,0)
+	arrivalRestrictions := make([]BusArrivalRestriction, 0)
 	for _, intervalString := range intervalStrings {
 		if intervalString != "x" {
 			interval, _ := strconv.Atoi(intervalString)
 			arrivalRestrictions = append(arrivalRestrictions, BusArrivalRestriction{
-				busInterval:    interval,
+				busInterval:      interval,
 				busArrivalOffset: offset,
 			})
 		}
