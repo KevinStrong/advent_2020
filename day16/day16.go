@@ -96,7 +96,7 @@ func validate(value int, def FieldDef) bool {
 }
 
 func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []FieldDef, tickets []Ticket) []TicketDefinition {
-	if len(appliedRestrictions) < 14 {
+	if len(appliedRestrictions) < 10 {
 		fmt.Printf("Depth #: %d\n", len(appliedRestrictions))
 	}
 	//cacheHit := checkCache(appliedRestrictions, tickets[0])
@@ -105,6 +105,9 @@ func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []
 	//	return cacheHit
 	//}
 	validTicketDefinitions := make([]TicketDefinition, 0)
+	if !areAllTicketsPossible(restrictionsToApply, tickets) {
+		return validTicketDefinitions
+	}
 	if len(tickets[0].values) == 0 && len(restrictionsToApply) == 0 {
 		fmt.Printf("Found a valid solution!\n")
 		definitions := append(validTicketDefinitions, TicketDefinition{fields: appliedRestrictions})
@@ -122,6 +125,17 @@ func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []
 	}
 	//addToCache(appliedRestrictions, tickets[0], validTicketDefinitions)
 	return validTicketDefinitions
+}
+
+func areAllTicketsPossible(restrictions []FieldDef, tickets []Ticket) bool {
+	for _, ticket := range tickets {
+		for _, value := range ticket.values {
+			if !isValuePossible(value, restrictions) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func allTicketsMeetRestriction(restriction FieldDef, tickets []Ticket) bool {
@@ -194,7 +208,7 @@ func possibleTicketsOnly(otherTickets []Ticket, restrictions TicketDefinition) [
 	validTickets := make([]Ticket, 0)
 	for _, ticket := range otherTickets {
 		for _, value := range ticket.values {
-			if !isValuePossible(value, restrictions) {
+			if !isValuePossible(value, restrictions.fields) {
 				ticket.isValid = false
 			}
 		}
@@ -205,8 +219,8 @@ func possibleTicketsOnly(otherTickets []Ticket, restrictions TicketDefinition) [
 	return validTickets
 }
 
-func isValuePossible(value int, restrictions TicketDefinition) bool {
-	for _, field := range restrictions.fields {
+func isValuePossible(value int, restrictions []FieldDef) bool {
+	for _, field := range restrictions {
 		for _, rule := range field.rules {
 			if rule.lower <= value && rule.upper >= value {
 				return true
