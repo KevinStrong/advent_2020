@@ -35,6 +35,10 @@ func main() {
 	otherValidTickets := possibleTicketsOnly(otherTickets, restrictions)
 	allTickets := append(otherValidTickets, yourTicket)
 	realTicketOrder := findFieldOrder(allTickets, restrictions.fields)
+	fmt.Println("Done")
+	for i := range realTicketOrder.fields {
+		fmt.Printf("%d, %s", i, realTicketOrder.fields[i].name)
+	}
 	departureMultiple := getDepartureMultiple(realTicketOrder, yourTicket)
 	fmt.Printf("Departure Multiple: %d\n", departureMultiple)
 }
@@ -50,14 +54,14 @@ func getDepartureMultiple(order TicketDefinition, ticket Ticket) int {
 }
 
 func findFieldOrder(tickets []Ticket, restrictions []FieldDef) TicketDefinition {
-	potentialFieldOrders := findValidFieldOrders(make([]FieldDef, 0), restrictions, tickets[0])
-	for ticketNumber, ticket := range tickets {
-		fmt.Printf("Checking ticket: %d\n", ticketNumber)
-		potentialFieldOrders = validateTicketDefinition(ticket, potentialFieldOrders)
-	}
+	potentialFieldOrders := findValidFieldOrders(make([]FieldDef, 0), restrictions, tickets)
+	// for ticketNumber, ticket := range tickets {
+	//	fmt.Printf("Checking ticket: %d\n", ticketNumber)
+	//	potentialFieldOrders = validateTicketDefinition(ticket, potentialFieldOrders)
+	//}
 	if len(potentialFieldOrders) != 1 {
 		fmt.Printf("You have %d valid orders\n", len(potentialFieldOrders))
-		panic("")
+		// panic("")
 	}
 	return potentialFieldOrders[0]
 }
@@ -91,55 +95,77 @@ func validate(value int, def FieldDef) bool {
 	return false
 }
 
-func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []FieldDef, ticket Ticket) []TicketDefinition {
-	cacheHit, returnValue := cacheMagic(appliedRestrictions, ticket)
-	if cacheHit {
-		return returnValue
+func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []FieldDef, tickets []Ticket) []TicketDefinition {
+	if len(appliedRestrictions) < 14 {
+		fmt.Printf("Depth #: %d\n", len(appliedRestrictions))
 	}
+	//cacheHit := checkCache(appliedRestrictions, tickets[0])
+	//if cacheHit != nil {
+	//	fmt.Printf("Cache hit")
+	//	return cacheHit
+	//}
 	validTicketDefinitions := make([]TicketDefinition, 0)
-	if len(ticket.values) == 0 && len(restrictionsToApply) == 0 {
+	if len(tickets[0].values) == 0 && len(restrictionsToApply) == 0 {
+		fmt.Printf("Found a valid solution!\n")
 		definitions := append(validTicketDefinitions, TicketDefinition{fields: appliedRestrictions})
-		addToCache(appliedRestrictions, ticket, definitions)
+		//addToCache(appliedRestrictions, tickets[0], definitions)
 		return definitions
 	}
 	for i, restriction := range restrictionsToApply {
-		if meetsRestriction(restriction, ticket.values[0]) {
+		if allTicketsMeetRestriction(restriction, tickets) {
 			validFieldOrders := findValidFieldOrders(
 				append(appliedRestrictions, restriction),
 				removeRestriction(restrictionsToApply, i),
-				removeValue(ticket, 0))
+				removeValueFromAllTickets(tickets, 0))
 			validTicketDefinitions = append(validTicketDefinitions, validFieldOrders...)
 		}
 	}
-	addToCache(appliedRestrictions, ticket, validTicketDefinitions)
+	//addToCache(appliedRestrictions, tickets[0], validTicketDefinitions)
 	return validTicketDefinitions
 }
 
-func addToCache(apply []FieldDef, ticket Ticket, definitions []TicketDefinition) {
-	cache[makeCacheKey(apply, ticket)] = definitions
+func allTicketsMeetRestriction(restriction FieldDef, tickets []Ticket) bool {
+	for _, ticket := range tickets {
+		if !meetsRestriction(restriction, ticket.values[0]) {
+			return false
+		}
+	}
+	return true
 }
 
-var cache = make(map[string][]TicketDefinition)
-
-func cacheMagic(restrictionsLeft []FieldDef, valuesLeft Ticket) (bool, []TicketDefinition) {
-	key := makeCacheKey(restrictionsLeft, valuesLeft)
-	if cache[key] != nil {
-		fmt.Printf("Cahce hit at depth: %d\n", len(restrictionsLeft))
-		return true, cache[key]
+func removeValueFromAllTickets(tickets []Ticket, i int) []Ticket {
+	updatedTickets := make([]Ticket, len(tickets))
+	for index, ticket := range tickets {
+		updatedTickets[index] = removeValue(ticket, i)
 	}
-	return false, nil
+	return updatedTickets
 }
 
-func makeCacheKey(fields []FieldDef, ticket Ticket) string {
-	key := ""
-	for i := range fields {
-		key += fields[i].name
-	}
-	for i := range ticket.values {
-		key += strconv.Itoa(ticket.values[i])
-	}
-	return key
-}
+//func addToCache(apply []FieldDef, ticket Ticket, definitions []TicketDefinition) {
+//	cache[makeCacheKey(apply, ticket)] = definitions
+//}
+
+//var cache = make(map[string][]TicketDefinition)
+
+//func checkCache(restrictionsLeft []FieldDef, valuesLeft Ticket) []TicketDefinition {
+//	key := makeCacheKey(restrictionsLeft, valuesLeft)
+//	if cache[key] != nil {
+//		fmt.Printf("Cache hit at depth: %d\n", len(restrictionsLeft))
+//		return cache[key]
+//	}
+//	return nil
+//}
+
+//func makeCacheKey(fields []FieldDef, ticket Ticket) string {
+//	key := ""
+//	for i := range fields {
+//		key += fields[i].name
+//	}
+//	for i := range ticket.values {
+//		key += strconv.Itoa(ticket.values[i])
+//	}
+//	return key
+//}
 
 func removeValue(ticket Ticket, i int) Ticket {
 	updatedValues := make([]int, len(ticket.values))
