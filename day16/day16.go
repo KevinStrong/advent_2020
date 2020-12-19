@@ -55,10 +55,6 @@ func getDepartureMultiple(order TicketDefinition, ticket Ticket) int {
 
 func findFieldOrder(tickets []Ticket, restrictions []FieldDef) TicketDefinition {
 	potentialFieldOrders := findValidFieldOrders(make([]FieldDef, 0), restrictions, tickets)
-	// for ticketNumber, ticket := range tickets {
-	//	fmt.Printf("Checking ticket: %d\n", ticketNumber)
-	//	potentialFieldOrders = validateTicketDefinition(ticket, potentialFieldOrders)
-	//}
 	if len(potentialFieldOrders) != 1 {
 		fmt.Printf("You have %d valid orders\n", len(potentialFieldOrders))
 		// panic("")
@@ -96,14 +92,9 @@ func validate(value int, def FieldDef) bool {
 }
 
 func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []FieldDef, tickets []Ticket) []TicketDefinition {
-	if len(appliedRestrictions) < 10 {
+	if len(appliedRestrictions) < 7 {
 		fmt.Printf("Depth #: %d\n", len(appliedRestrictions))
 	}
-	//cacheHit := checkCache(appliedRestrictions, tickets[0])
-	//if cacheHit != nil {
-	//	fmt.Printf("Cache hit")
-	//	return cacheHit
-	//}
 	validTicketDefinitions := make([]TicketDefinition, 0)
 	if !areAllTicketsPossible(restrictionsToApply, tickets) {
 		return validTicketDefinitions
@@ -111,19 +102,17 @@ func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []
 	if len(tickets[0].values) == 0 && len(restrictionsToApply) == 0 {
 		fmt.Printf("Found a valid solution!\n")
 		definitions := append(validTicketDefinitions, TicketDefinition{fields: appliedRestrictions})
-		//addToCache(appliedRestrictions, tickets[0], definitions)
 		return definitions
 	}
-	for i, restriction := range restrictionsToApply {
-		if allTicketsMeetRestriction(restriction, tickets) {
+	for restrictionIndex, restriction := range restrictionsToApply {
+		if allFirstFieldsMeetRestriction(restriction, tickets) {
 			validFieldOrders := findValidFieldOrders(
 				append(appliedRestrictions, restriction),
-				removeRestriction(restrictionsToApply, i),
-				removeValueFromAllTickets(tickets, 0))
+				removeRestriction(restrictionsToApply, restrictionIndex),
+				removeFirstValueFromAllTickets(tickets))
 			validTicketDefinitions = append(validTicketDefinitions, validFieldOrders...)
 		}
 	}
-	//addToCache(appliedRestrictions, tickets[0], validTicketDefinitions)
 	return validTicketDefinitions
 }
 
@@ -138,7 +127,7 @@ func areAllTicketsPossible(restrictions []FieldDef, tickets []Ticket) bool {
 	return true
 }
 
-func allTicketsMeetRestriction(restriction FieldDef, tickets []Ticket) bool {
+func allFirstFieldsMeetRestriction(restriction FieldDef, tickets []Ticket) bool {
 	for _, ticket := range tickets {
 		if !meetsRestriction(restriction, ticket.values[0]) {
 			return false
@@ -147,44 +136,17 @@ func allTicketsMeetRestriction(restriction FieldDef, tickets []Ticket) bool {
 	return true
 }
 
-func removeValueFromAllTickets(tickets []Ticket, i int) []Ticket {
+func removeFirstValueFromAllTickets(tickets []Ticket) []Ticket {
 	updatedTickets := make([]Ticket, len(tickets))
 	for index, ticket := range tickets {
-		updatedTickets[index] = removeValue(ticket, i)
+		updatedTickets[index] = removeFirstValue(ticket)
 	}
 	return updatedTickets
 }
 
-//func addToCache(apply []FieldDef, ticket Ticket, definitions []TicketDefinition) {
-//	cache[makeCacheKey(apply, ticket)] = definitions
-//}
-
-//var cache = make(map[string][]TicketDefinition)
-
-//func checkCache(restrictionsLeft []FieldDef, valuesLeft Ticket) []TicketDefinition {
-//	key := makeCacheKey(restrictionsLeft, valuesLeft)
-//	if cache[key] != nil {
-//		fmt.Printf("Cache hit at depth: %d\n", len(restrictionsLeft))
-//		return cache[key]
-//	}
-//	return nil
-//}
-
-//func makeCacheKey(fields []FieldDef, ticket Ticket) string {
-//	key := ""
-//	for i := range fields {
-//		key += fields[i].name
-//	}
-//	for i := range ticket.values {
-//		key += strconv.Itoa(ticket.values[i])
-//	}
-//	return key
-//}
-
-func removeValue(ticket Ticket, i int) Ticket {
-	updatedValues := make([]int, len(ticket.values))
-	copy(updatedValues, ticket.values)
-	updatedValues = append(updatedValues[:i], updatedValues[i+1:]...)
+func removeFirstValue(ticket Ticket) Ticket {
+	updatedValues := make([]int, len(ticket.values)-1)
+	copy(updatedValues, ticket.values[1:])
 	return Ticket{values: updatedValues}
 }
 
