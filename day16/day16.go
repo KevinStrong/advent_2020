@@ -37,7 +37,7 @@ func main() {
 	realTicketOrder := findFieldOrder(allTickets, restrictions.fields)
 	fmt.Println("Done")
 	for i := range realTicketOrder.fields {
-		fmt.Printf("%d, %s", i, realTicketOrder.fields[i].name)
+		fmt.Printf("%d, %s\n", i, realTicketOrder.fields[i].name)
 	}
 	departureMultiple := getDepartureMultiple(realTicketOrder, yourTicket)
 	fmt.Printf("Departure Multiple: %d\n", departureMultiple)
@@ -46,7 +46,7 @@ func main() {
 func getDepartureMultiple(order TicketDefinition, ticket Ticket) int {
 	multiple := 1
 	for i, field := range order.fields {
-		if strings.HasPrefix(field.name, "Departure") {
+		if strings.HasPrefix(field.name, "departure") {
 			multiple *= ticket.values[i]
 		}
 	}
@@ -54,107 +54,166 @@ func getDepartureMultiple(order TicketDefinition, ticket Ticket) int {
 }
 
 func findFieldOrder(tickets []Ticket, restrictions []FieldDef) TicketDefinition {
-	potentialFieldOrders := findValidFieldOrders(make([]FieldDef, 0), restrictions, tickets)
-	if len(potentialFieldOrders) != 1 {
-		fmt.Printf("You have %d valid orders\n", len(potentialFieldOrders))
-		// panic("")
+	rowsToPossibleRestrictions := buildColumnToPossibleRestrictions(tickets, restrictions)
+	solution, success := solveTwoDimensionalArray(rowsToPossibleRestrictions)
+	if !success {
+		panic("We failed boss!")
 	}
-	return potentialFieldOrders[0]
+	return convertToTicketDefinition(solution, restrictions)
 }
 
-func validateTicketDefinition(ticket Ticket, potentials []TicketDefinition) []TicketDefinition {
-	validTicketDefinitions := make([]TicketDefinition, 0)
-	for i := range potentials {
-		if isTicketDefinitionValid(ticket, potentials[i]) {
-			validTicketDefinitions = append(validTicketDefinitions, potentials[i])
+func convertToTicketDefinition(solution [][]int, allRestrictions []FieldDef) TicketDefinition {
+	orderedRestrictions := make([]FieldDef, len(allRestrictions))
+	for i := range solution {
+		if len(solution[i]) != 1 {
+			fmt.Println("Solution is broken", len(solution[i]))
+		}
+		restrictionIndexForThisColumn := solution[i][0]
+		orderedRestrictions[i] = allRestrictions[restrictionIndexForThisColumn]
+	}
+	return TicketDefinition{fields: orderedRestrictions}
+}
+
+func solveTwoDimensionalArray(rowsToPossibleRestrictions [][]int) ([][]int, bool) {
+	if isSolved(rowsToPossibleRestrictions) {
+		return rowsToPossibleRestrictions, true
+	}
+	if !isSolutionPossible(rowsToPossibleRestrictions) {
+		return rowsToPossibleRestrictions, false
+	}
+	rowsToPossibleRestrictions = copy2DArray(rowsToPossibleRestrictions)
+
+	rowsToPossibleRestrictions = deduceWhatWeCan(rowsToPossibleRestrictions)
+
+	if isSolved(rowsToPossibleRestrictions) {
+		return rowsToPossibleRestrictions, true
+	}
+
+	var guessedSolution [][]int
+	var success bool
+	for i := range rowsToPossibleRestrictions {
+		if len(rowsToPossibleRestrictions[i]) > 1 {
+			for i2 := range rowsToPossibleRestrictions[i] {
+				guessedSolution = guessThisIndex(rowsToPossibleRestrictions, i, i2)
+				guessedSolution, success = solveTwoDimensionalArray(guessedSolution)
+				if success {
+					return guessedSolution, true
+				}
+			}
 		}
 	}
-	return validTicketDefinitions
+	return rowsToPossibleRestrictions, false
 }
 
-func isTicketDefinitionValid(ticket Ticket, definition TicketDefinition) bool {
-	ticket.isValid = true
-	for i, value := range ticket.values {
-		if !validate(value, definition.fields[i]) {
-			ticket.isValid = false
+func guessThisIndex(restrictions [][]int, i int, i2 int) [][]int {
+	guess := copy2DArray(restrictions)
+	removeFromArray(guess, i, i2)
+	return guess
+}
+
+// Returns a copy of the array that as been solved with a simple sudoku style solver
+func deduceWhatWeCan(restrictions [][]int) [][]int {
+	updatedArray, changeMade := attemptToReduce(restrictions)
+	for changeMade {
+		updatedArray, changeMade = attemptToReduce(updatedArray)
+	}
+	return updatedArray
+}
+
+func attemptToReduce(restrictions [][]int) ([][]int, bool) {
+	changeMade := false
+	for i := range restrictions {
+		if len(restrictions[i]) == 1 {
+			restrictions, changeMade = removeFromTwoDArray(restrictions, restrictions[i][0])
 		}
 	}
-	return ticket.isValid
+	return restrictions, changeMade
 }
 
-func validate(value int, def FieldDef) bool {
-	for _, rule := range def.rules {
-		if value <= rule.upper && value >= rule.lower {
+func removeFromTwoDArray(problem [][]int, valueToRemove int) ([][]int, bool) {
+	changeMade := false
+	for i := range problem {
+		changeMade = removeFromArray(problem, i, valueToRemove) || changeMade
+	}
+	return problem, changeMade
+}
+
+func removeFromArray(updatedArray [][]int, i int, valueToRemove int) bool {
+	for i2 := range updatedArray[i] {
+		if updatedArray[i][i2] == valueToRemove && len(updatedArray[i]) != 1 {
+			updatedArray[i] = remove(updatedArray[i], i2)
 			return true
 		}
 	}
 	return false
 }
 
-func findValidFieldOrders(appliedRestrictions []FieldDef, restrictionsToApply []FieldDef, tickets []Ticket) []TicketDefinition {
-	if len(appliedRestrictions) < 7 {
-		fmt.Printf("Depth #: %d\n", len(appliedRestrictions))
-	}
-	validTicketDefinitions := make([]TicketDefinition, 0)
-	if !areAllTicketsPossible(restrictionsToApply, tickets) {
-		return validTicketDefinitions
-	}
-	if len(tickets[0].values) == 0 && len(restrictionsToApply) == 0 {
-		fmt.Printf("Found a valid solution!\n")
-		definitions := append(validTicketDefinitions, TicketDefinition{fields: appliedRestrictions})
-		return definitions
-	}
-	for restrictionIndex, restriction := range restrictionsToApply {
-		if allFirstFieldsMeetRestriction(restriction, tickets) {
-			validFieldOrders := findValidFieldOrders(
-				append(appliedRestrictions, restriction),
-				removeRestriction(restrictionsToApply, restrictionIndex),
-				removeFirstValueFromAllTickets(tickets))
-			validTicketDefinitions = append(validTicketDefinitions, validFieldOrders...)
-		}
-	}
-	return validTicketDefinitions
+func remove(slice []int, s int) []int {
+	return append(slice[:s], slice[s+1:]...)
 }
 
-func areAllTicketsPossible(restrictions []FieldDef, tickets []Ticket) bool {
-	for _, ticket := range tickets {
-		for _, value := range ticket.values {
-			if !isValuePossible(value, restrictions) {
-				return false
-			}
-		}
+func copy2DArray(restrictions [][]int) [][]int {
+	copyOfArray := make([][]int, len(restrictions))
+	for i := range restrictions {
+		copyOfArray[i] = make([]int, len(restrictions[i]))
+		copy(copyOfArray[i], restrictions[i])
 	}
-	return true
+	return copyOfArray
 }
 
-func allFirstFieldsMeetRestriction(restriction FieldDef, tickets []Ticket) bool {
-	for _, ticket := range tickets {
-		if !meetsRestriction(restriction, ticket.values[0]) {
+func isSolutionPossible(restrictions [][]int) bool {
+	for i := range restrictions {
+		if len(restrictions[i]) < 1 {
 			return false
 		}
 	}
 	return true
 }
 
-func removeFirstValueFromAllTickets(tickets []Ticket) []Ticket {
-	updatedTickets := make([]Ticket, len(tickets))
-	for index, ticket := range tickets {
-		updatedTickets[index] = removeFirstValue(ticket)
+func isSolved(restrictions [][]int) bool {
+	for i := range restrictions {
+		if len(restrictions[i]) != 1 {
+			return false
+		}
 	}
-	return updatedTickets
+	return true
 }
 
-func removeFirstValue(ticket Ticket) Ticket {
-	updatedValues := make([]int, len(ticket.values)-1)
-	copy(updatedValues, ticket.values[1:])
-	return Ticket{values: updatedValues}
+// Index of first array matches the column number, then the second array contains all indexs of restrictions that match
+func buildColumnToPossibleRestrictions(tickets []Ticket, restrictions []FieldDef) [][]int {
+	numberOfColumns := len(restrictions)
+	rowToRestrictions := make([][]int, numberOfColumns)
+	for i := 0; i < numberOfColumns; i++ {
+		rowToRestrictions[i] = buildPossibleRestrictionsForColumn(getColumn(tickets, i), restrictions)
+	}
+	return rowToRestrictions
 }
 
-func removeRestriction(apply []FieldDef, i int) []FieldDef {
-	updatedValues := make([]FieldDef, len(apply))
-	copy(updatedValues, apply)
-	updatedValues = append(updatedValues[:i], updatedValues[i+1:]...)
-	return updatedValues
+func getColumn(tickets []Ticket, i int) []int {
+	column := make([]int, len(tickets))
+	for i2 := range tickets {
+		column[i2] = tickets[i2].values[i]
+	}
+	return column
+}
+
+func buildPossibleRestrictionsForColumn(column []int, restrictions []FieldDef) []int {
+	possibleRestrictions := make([]int, 0)
+	for i, restriction := range restrictions {
+		if doAllColumnValuesMeetRestriction(column, restriction) {
+			possibleRestrictions = append(possibleRestrictions, i)
+		}
+	}
+	return possibleRestrictions
+}
+
+func doAllColumnValuesMeetRestriction(column []int, restriction FieldDef) bool {
+	for _, columnValue := range column {
+		if !meetsRestriction(restriction, columnValue) {
+			return false
+		}
+	}
+	return true
 }
 
 func meetsRestriction(restriction FieldDef, i int) bool {
