@@ -15,7 +15,7 @@ type Location struct {
 
 func main() {
 	startingBoard := createBoard(input.ReadLines("day17/input.txt"))
-	endingBoard := solvePartOne(startingBoard)
+	endingBoard := solvePartTwo(startingBoard)
 	countActiveCells(endingBoard)
 }
 
@@ -85,11 +85,10 @@ func findRange(board map[Location]bool, f func(Location) int) (int, int) {
 	return min, max
 }
 
-func solvePartOne(board map[Location]bool) map[Location]bool {
+func solvePartTwo(board map[Location]bool) map[Location]bool {
 	var nextBoard = board
 	for i := 0; i < 6; i++ {
 		nextBoard = performOneCycle(nextBoard)
-		// printBoard(nextBoard)
 	}
 	return nextBoard
 }
@@ -138,39 +137,40 @@ func isLocationActive(board map[Location]bool, location Location) bool {
 func getAllCellsNeighborCount(board map[Location]bool) map[Location]int {
 	neighbors := make(map[Location]int)
 	for location := range board {
-		for x := -1; x < 2; x++ {
-			for y := -1; y < 2; y++ {
-				for z := -1; z < 2; z++ {
-					for w := -1; w < 2; w++ {
-						if !(z == 0 && y == 0 && x == 0 && w == 0) {
-							neighbors[Location{x: x + location.x, y: y + location.y, z: z + location.z, w: w + location.w}]++
-						}
-					}
-				}
-			}
-		}
+		processNeighbors(
+			func(x int, y int, z int, w int) {
+				neighbors[Location{x: x + location.x, y: y + location.y, z: z + location.z, w: w + location.w}]++
+			})
 	}
 	return neighbors
 }
 
-func getActiveNeighbors(location Location, board map[Location]bool) int {
-	activeNeighbors := 0
+func processNeighbors(f func(x int, y int, z int, w int)) {
 	for x := -1; x < 2; x++ {
 		for y := -1; y < 2; y++ {
 			for z := -1; z < 2; z++ {
 				for w := -1; w < 2; w++ {
 					if !(z == 0 && y == 0 && x == 0 && w == 0) {
-						if isLocationActive(
-							board,
-							Location{x: x + location.x, y: y + location.y, z: z + location.z, w: w + location.w},
-						) {
-							activeNeighbors++
-						}
+						f(x, y, z, w)
 					}
 				}
 			}
 		}
 	}
+}
+
+func getActiveNeighbors(location Location, board map[Location]bool) int {
+	activeNeighbors := 0
+	processNeighbors(func(x int, y int, z int, w int) {
+		if isLocationActive(board, Location{
+			x: x + location.x,
+			y: y + location.y,
+			z: z + location.z,
+			w: w + location.w,
+		}) {
+			activeNeighbors++
+		}
+	})
 	return activeNeighbors
 }
 
