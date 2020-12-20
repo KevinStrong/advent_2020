@@ -10,13 +10,12 @@ type Location struct {
 	x int
 	y int
 	z int
+	w int
 }
 
 func main() {
 	startingBoard := createBoard(input.ReadLines("day17/input.txt"))
-	printBoard(startingBoard)
 	endingBoard := solvePartOne(startingBoard)
-	printBoard(endingBoard)
 	countActiveCells(endingBoard)
 }
 
@@ -30,7 +29,7 @@ func countActiveCells(board map[Location]bool) {
 	fmt.Println("Result: ", activeCells)
 }
 
-func printBoard(board map[Location]bool) {
+func _(board map[Location]bool) {
 	minX, maxX := findRange(board, func(location Location) int { return location.x })
 	minY, maxY := findRange(board, func(location Location) int { return location.y })
 	minZ, maxZ := findRange(board, func(location Location) int { return location.z })
@@ -90,7 +89,7 @@ func solvePartOne(board map[Location]bool) map[Location]bool {
 	var nextBoard = board
 	for i := 0; i < 6; i++ {
 		nextBoard = performOneCycle(nextBoard)
-		printBoard(nextBoard)
+		// printBoard(nextBoard)
 	}
 	return nextBoard
 }
@@ -142,8 +141,10 @@ func getAllCellsNeighborCount(board map[Location]bool) map[Location]int {
 		for x := -1; x < 2; x++ {
 			for y := -1; y < 2; y++ {
 				for z := -1; z < 2; z++ {
-					if !(z == 0 && y == 0 && x == 0) {
-						neighbors[Location{x: x + location.x, y: y + location.y, z: z + location.z}]++
+					for w := -1; w < 2; w++ {
+						if !(z == 0 && y == 0 && x == 0 && w == 0) {
+							neighbors[Location{x: x + location.x, y: y + location.y, z: z + location.z, w: w + location.w}]++
+						}
 					}
 				}
 			}
@@ -157,12 +158,14 @@ func getActiveNeighbors(location Location, board map[Location]bool) int {
 	for x := -1; x < 2; x++ {
 		for y := -1; y < 2; y++ {
 			for z := -1; z < 2; z++ {
-				if !(z == 0 && y == 0 && x == 0) {
-					if isLocationActive(
-						board,
-						Location{x: x + location.x, y: y + location.y, z: z + location.z},
-					) {
-						activeNeighbors++
+				for w := -1; w < 2; w++ {
+					if !(z == 0 && y == 0 && x == 0 && w == 0) {
+						if isLocationActive(
+							board,
+							Location{x: x + location.x, y: y + location.y, z: z + location.z, w: w + location.w},
+						) {
+							activeNeighbors++
+						}
 					}
 				}
 			}
@@ -176,7 +179,7 @@ func createBoard(lines []string) map[Location]bool {
 	for i := range lines {
 		for i2 := range lines[i] {
 			if string(lines[i][i2]) == "#" {
-				board[Location{x: i2, y: i, z: 0}] = true
+				board[Location{x: i2, y: i, z: 0, w: 0}] = true
 			}
 		}
 	}
