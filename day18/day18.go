@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	equations := input.ReadLines("day18/sample_input.txt")
+	equations := input.ReadLines("day18/input.txt")
 	results := make([]int, len(equations))
 	for i := range equations {
 		results[i] = calculate(stripWhiteSpace(equations[i]))
@@ -32,27 +32,78 @@ func calculate(equation string) int {
 
 // Convert the entire input to a single "element" by wrapping in parenthesis
 func evaluateAnElement(equation string) (int, string) {
-	lhs := 0
-	remainingEquation := equation
-	var nextChar = "try the first character please"
+	result := 0
+	element := make([]string, 0)
+	nextChar, remainingEquation := eatChar(equation)
 	for nextChar != "" {
-		nextChar, remainingEquation = eatChar(remainingEquation)
 		switch nextChar {
 		case "+", "*":
-			var rhs int
-			rhs, remainingEquation = evaluateAnElement(remainingEquation)
-			lhs = performOpp(lhs, nextChar, rhs)
+			element = append(element, nextChar)
 		case "(":
-			lhs, remainingEquation = evaluateAnElement(remainingEquation)
+			result, remainingEquation = evaluateAnElement(remainingEquation)
+			element = append(element, strconv.Itoa(result))
 		case ")":
-			return lhs, remainingEquation
+			return collapseElement(element), remainingEquation
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
-			return parseNumber(nextChar), remainingEquation
+			element = append(element, nextChar)
 		default:
 			panic(nextChar)
 		}
+		nextChar, remainingEquation = eatChar(remainingEquation)
 	}
-	panic("Wrap everything in a parenthesis")
+	return result, remainingEquation
+}
+func collapseElement(element []string) int {
+	onlyMultiplication := performAllAddition(element)
+	return performAllMultiplication(onlyMultiplication)
+}
+
+func performAllMultiplication(element []string) int {
+	product := 0
+	for i := 0; i < len(element); i++ {
+		switch element[i] {
+		case "*":
+			i++
+			rhs, err := strconv.Atoi(element[i])
+			if err != nil {
+				panic(err)
+			}
+			product *= rhs
+		default:
+			lhs, err := strconv.Atoi(element[i])
+			if err != nil {
+				panic(err)
+			}
+			product = lhs
+		}
+	}
+	return product
+}
+
+func performAllAddition(element []string) []string {
+	result := make([]string, 0)
+	for i := 0; i < len(element); i++ {
+		switch element[i] {
+		case "*":
+			result = append(result, "*")
+		case "+":
+			previousValue := result[len(result)-1]
+			result = result[:len(result)-1]
+			lhs, err := strconv.Atoi(previousValue)
+			if err != nil {
+				panic(err)
+			}
+			i++
+			rhs, err := strconv.Atoi(element[i])
+			if err != nil {
+				panic(err)
+			}
+			result = append(result, strconv.Itoa(lhs+rhs))
+		default:
+			result = append(result, element[i])
+		}
+	}
+	return result
 }
 
 func eatChar(equation string) (string, string) {
@@ -60,28 +111,6 @@ func eatChar(equation string) (string, string) {
 		return "", ""
 	}
 	return string(equation[0]), equation[1:]
-}
-
-func parseNumber(char string) int {
-	value, err := strconv.Atoi(char)
-	if err != nil {
-		panic(err)
-	} else {
-		return value
-	}
-}
-
-func performOpp(lhs int, opp string, rhs int) int {
-	switch opp {
-	case "*":
-		return lhs * rhs
-	case "+":
-		return lhs + rhs
-	case "-":
-		return lhs - rhs
-	default:
-		panic("Unknown opp: " + opp)
-	}
 }
 
 func sumResults(results []int) int {
