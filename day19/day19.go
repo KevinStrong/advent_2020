@@ -7,14 +7,16 @@ import (
 	"strings"
 )
 
-var prefix = "day19/sample_input_two/"
+var prefix = "day19/input/"
 var lines []string
 var rules map[string]Rule
 
 func main() {
 	lines = input.ReadLines(prefix + "rules.txt")
 	rules := createRules(lines)
+	fmt.Println("Rule created")
 	values := input.ReadLines(prefix + "fields.txt")
+	fmt.Println("Matching Values")
 	linesThatMatchRuleZero := 0
 	for i := range values {
 		match := rules["0"].match(values[i])
@@ -32,7 +34,7 @@ type Rule struct {
 
 type RuleHelper interface {
 	matchHelper(input string) (bool, []string)
-	wireUpPlaceholder(rules map[string]Rule) Rule
+	wireUpPlaceholder(rules map[string]Rule, depth int) Rule
 }
 
 type Ands struct {
@@ -40,6 +42,7 @@ type Ands struct {
 }
 
 type Ors struct {
+	name             string
 	RulesOrdTogether []Rule
 }
 
@@ -51,7 +54,6 @@ type Placeholder struct {
 	ruleName string
 }
 
-//match is used
 func (rule Rule) match(input string) bool {
 	success, remaining := rule.matchHelper(input)
 	atLeastOneMatchesFullInput := false
@@ -66,30 +68,40 @@ func (rule Placeholder) matchHelper(_ string) (bool, []string) {
 }
 
 func (rule Ors) matchHelper(input string) (bool, []string) {
+	if len(input) == 0 {
+		return false, []string{""}
+	}
 	possibleRemainings := make([]string, 0)
 	for i := range rule.RulesOrdTogether {
-		_, remaining := rule.RulesOrdTogether[i].matchHelper(input)
-		possibleRemainings = append(possibleRemainings, remaining...)
+		isMatch, remaining := rule.RulesOrdTogether[i].matchHelper(input)
+		if isMatch {
+			possibleRemainings = append(possibleRemainings, remaining...)
+		}
 	}
 	return len(possibleRemainings) > 0, possibleRemainings
 }
 
 func (rule Ands) matchHelper(input string) (bool, []string) {
+	if len(input) == 0 {
+		return false, []string{""}
+	}
 	nextRemaining := make([]string, 1)
 	nextRemaining[0] = input
 	var remaining []string
-	for i := range rule.RulesAndedTogether {
+	for andIndex := range rule.RulesAndedTogether {
 		remaining = nextRemaining
 		nextRemaining = make([]string, 0)
-		for i2 := range remaining {
-			thisMatch, thisRemaining := rule.RulesAndedTogether[i].matchHelper(remaining[i2])
-			if !thisMatch {
-				return false, make([]string, 0)
+		for potentialRemainingIndex := range remaining {
+			thisMatch, thisRemaining := rule.RulesAndedTogether[andIndex].matchHelper(remaining[potentialRemainingIndex])
+			if thisMatch {
+				nextRemaining = createIntersection(nextRemaining, thisRemaining)
 			}
-			nextRemaining = createIntersection(nextRemaining, thisRemaining)
+		}
+		if len(nextRemaining) == 0 {
+			return false, make([]string, 0)
 		}
 	}
-	return true, remaining
+	return true, nextRemaining
 }
 
 func createIntersection(first []string, second []string) []string {
@@ -116,25 +128,33 @@ func (rule Direct) matchHelper(input string) (bool, []string) {
 	return string(input[0]) == rule.value, remaining
 }
 
-func (rule Placeholder) wireUpPlaceholder(rules map[string]Rule) Rule {
+func (rule Placeholder) wireUpPlaceholder(rules map[string]Rule, _ int) Rule {
 	return rules[rule.ruleName]
 }
 
-func (rule Ors) wireUpPlaceholder(rules map[string]Rule) Rule {
+func (rule Ors) wireUpPlaceholder(rules map[string]Rule, depth int) Rule {
+	depth++
+	if depth > 100 {
+		return Rule{rule}
+	}
 	for i := range rule.RulesOrdTogether {
-		rule.RulesOrdTogether[i] = rule.RulesOrdTogether[i].wireUpPlaceholder(rules)
+		rule.RulesOrdTogether[i] = rule.RulesOrdTogether[i].wireUpPlaceholder(rules, depth)
 	}
 	return Rule{rule}
 }
 
-func (rule Ands) wireUpPlaceholder(rules map[string]Rule) Rule {
+func (rule Ands) wireUpPlaceholder(rules map[string]Rule, depth int) Rule {
+	depth++
+	if depth > 100 {
+		return Rule{rule}
+	}
 	for i := range rule.RulesAndedTogether {
-		rule.RulesAndedTogether[i] = rule.RulesAndedTogether[i].wireUpPlaceholder(rules)
+		rule.RulesAndedTogether[i] = rule.RulesAndedTogether[i].wireUpPlaceholder(rules, depth)
 	}
 	return Rule{rule}
 }
 
-func (rule Direct) wireUpPlaceholder(_ map[string]Rule) Rule {
+func (rule Direct) wireUpPlaceholder(_ map[string]Rule, _ int) Rule {
 	return Rule{rule}
 }
 
@@ -143,13 +163,15 @@ func createRules(lines []string) map[string]Rule {
 	for i := range lines {
 		createRole(lines[i])
 	}
+	fmt.Println("Wire up placeholders")
 	wireUpRecursivePlaceholderValues(rules)
 	return rules
 }
 
 func wireUpRecursivePlaceholderValues(r map[string]Rule) {
 	for ruleKey, ruleValue := range r {
-		r[ruleKey] = ruleValue.wireUpPlaceholder(r)
+		fmt.Println("Wiring up: ", ruleKey)
+		r[ruleKey] = ruleValue.wireUpPlaceholder(r, 0)
 	}
 }
 
@@ -161,16 +183,15 @@ func createRole(line string) Rule {
 	key := captureGroups[1]
 	if rules[key] != Empty {
 		return rules[key]
-	} else {
-		rules[key] = Rule{Placeholder{ruleName: key}}
 	}
-	value := createRuleFromSpec(captureGroups[2])
+	rules[key] = Rule{Placeholder{ruleName: key}}
+	value := createRuleFromSpec(captureGroups[1], captureGroups[2])
 	rules[key] = value
 	return rules[key]
 }
 
-func createRuleFromSpec(s string) Rule {
-	orGroupsStrings := strings.Split(strings.TrimSpace(s), "|")
+func createRuleFromSpec(name string, spec string) Rule {
+	orGroupsStrings := strings.Split(strings.TrimSpace(spec), "|")
 	orGroups := make([]Rule, len(orGroupsStrings))
 	for i := range orGroups {
 		orGroups[i] = makeAndGroup(orGroupsStrings[i])
@@ -178,7 +199,7 @@ func createRuleFromSpec(s string) Rule {
 	if len(orGroups) == 1 {
 		return orGroups[0]
 	}
-	return Rule{Ors{RulesOrdTogether: orGroups}}
+	return Rule{Ors{name: name, RulesOrdTogether: orGroups}}
 }
 
 func makeAndGroup(andGroupString string) Rule {
