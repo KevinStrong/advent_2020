@@ -31,7 +31,7 @@ type Rule struct {
 }
 
 type RuleHelper interface {
-	matchHelper(input string) (bool, string)
+	matchHelper(input string) (bool, []string)
 	wireUpPlaceholder(rules map[string]Rule) Rule
 }
 
@@ -54,39 +54,66 @@ type Placeholder struct {
 //match is used
 func (rule Rule) match(input string) bool {
 	success, remaining := rule.matchHelper(input)
-	return success && remaining == ""
+	atLeastOneMatchesFullInput := false
+	for i := range remaining {
+		atLeastOneMatchesFullInput = atLeastOneMatchesFullInput || remaining[i] == ""
+	}
+	return success && atLeastOneMatchesFullInput
 }
 
-func (rule Placeholder) matchHelper(_ string) (bool, string) {
+func (rule Placeholder) matchHelper(_ string) (bool, []string) {
 	panic("Calling matchHelper on a placeholder")
 }
 
-func (rule Ors) matchHelper(input string) (bool, string) {
+func (rule Ors) matchHelper(input string) (bool, []string) {
+	possibleRemainings := make([]string, 0)
 	for i := range rule.RulesOrdTogether {
-		match, remaining := rule.RulesOrdTogether[i].matchHelper(input)
-		if match {
-			return true, remaining
-		}
+		_, remaining := rule.RulesOrdTogether[i].matchHelper(input)
+		possibleRemainings = append(possibleRemainings, remaining...)
 	}
-	return false, ""
+	return len(possibleRemainings) > 0, possibleRemainings
 }
 
-func (rule Ands) matchHelper(input string) (bool, string) {
-	allMatches := true
-	remaining := input
+func (rule Ands) matchHelper(input string) (bool, []string) {
+	nextRemaining := make([]string, 1)
+	nextRemaining[0] = input
+	var remaining []string
 	for i := range rule.RulesAndedTogether {
-		var thisMatch bool
-		thisMatch, remaining = rule.RulesAndedTogether[i].matchHelper(remaining)
-		allMatches = allMatches && thisMatch
-		if !allMatches {
-			return false, ""
+		remaining = nextRemaining
+		nextRemaining = make([]string, 0)
+		for i2 := range remaining {
+			thisMatch, thisRemaining := rule.RulesAndedTogether[i].matchHelper(remaining[i2])
+			if !thisMatch {
+				return false, make([]string, 0)
+			}
+			nextRemaining = createIntersection(nextRemaining, thisRemaining)
 		}
 	}
-	return allMatches, remaining
+	return true, remaining
 }
 
-func (rule Direct) matchHelper(input string) (bool, string) {
-	return string(input[0]) == rule.value, input[1:]
+func createIntersection(first []string, second []string) []string {
+	encountered := map[string]bool{}
+
+	for _, c := range first {
+		encountered[c] = true
+	}
+	for _, c := range second {
+		encountered[c] = true
+	}
+
+	var result = make([]string, len(encountered))
+	i := 0
+	for key := range encountered {
+		result[i] = key
+		i++
+	}
+	return result
+}
+
+func (rule Direct) matchHelper(input string) (bool, []string) {
+	remaining := []string{input[1:]}
+	return string(input[0]) == rule.value, remaining
 }
 
 func (rule Placeholder) wireUpPlaceholder(rules map[string]Rule) Rule {
@@ -94,19 +121,17 @@ func (rule Placeholder) wireUpPlaceholder(rules map[string]Rule) Rule {
 }
 
 func (rule Ors) wireUpPlaceholder(rules map[string]Rule) Rule {
-	wiredUpRules := make([]Rule, len(rule.RulesOrdTogether))
 	for i := range rule.RulesOrdTogether {
-		wiredUpRules[i] = rule.RulesOrdTogether[i].wireUpPlaceholder(rules)
+		rule.RulesOrdTogether[i] = rule.RulesOrdTogether[i].wireUpPlaceholder(rules)
 	}
-	return Rule{Ors{RulesOrdTogether: wiredUpRules}}
+	return Rule{rule}
 }
 
 func (rule Ands) wireUpPlaceholder(rules map[string]Rule) Rule {
-	wiredUpRules := make([]Rule, len(rule.RulesAndedTogether))
 	for i := range rule.RulesAndedTogether {
-		wiredUpRules[i] = rule.RulesAndedTogether[i].wireUpPlaceholder(rules)
+		rule.RulesAndedTogether[i] = rule.RulesAndedTogether[i].wireUpPlaceholder(rules)
 	}
-	return Rule{Ands{RulesAndedTogether: wiredUpRules}}
+	return Rule{rule}
 }
 
 func (rule Direct) wireUpPlaceholder(_ map[string]Rule) Rule {
