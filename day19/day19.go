@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var prefix = "day19/input/"
+var prefix = "day19/sample_input_two/"
 var lines []string
 var rules map[string]Rule
 
@@ -32,6 +32,7 @@ type Rule struct {
 
 type RuleHelper interface {
 	matchHelper(input string) (bool, string)
+	wireUpPlaceholder(rules map[string]Rule) Rule
 }
 
 type Ands struct {
@@ -46,10 +47,18 @@ type Direct struct {
 	value string
 }
 
+type Placeholder struct {
+	ruleName string
+}
+
 //match is used
 func (rule Rule) match(input string) bool {
 	success, remaining := rule.matchHelper(input)
 	return success && remaining == ""
+}
+
+func (rule Placeholder) matchHelper(_ string) (bool, string) {
+	panic("Calling matchHelper on a placeholder")
 }
 
 func (rule Ors) matchHelper(input string) (bool, string) {
@@ -80,12 +89,43 @@ func (rule Direct) matchHelper(input string) (bool, string) {
 	return string(input[0]) == rule.value, input[1:]
 }
 
+func (rule Placeholder) wireUpPlaceholder(rules map[string]Rule) Rule {
+	return rules[rule.ruleName]
+}
+
+func (rule Ors) wireUpPlaceholder(rules map[string]Rule) Rule {
+	wiredUpRules := make([]Rule, len(rule.RulesOrdTogether))
+	for i := range rule.RulesOrdTogether {
+		wiredUpRules[i] = rule.RulesOrdTogether[i].wireUpPlaceholder(rules)
+	}
+	return Rule{Ors{RulesOrdTogether: wiredUpRules}}
+}
+
+func (rule Ands) wireUpPlaceholder(rules map[string]Rule) Rule {
+	wiredUpRules := make([]Rule, len(rule.RulesAndedTogether))
+	for i := range rule.RulesAndedTogether {
+		wiredUpRules[i] = rule.RulesAndedTogether[i].wireUpPlaceholder(rules)
+	}
+	return Rule{Ands{RulesAndedTogether: wiredUpRules}}
+}
+
+func (rule Direct) wireUpPlaceholder(_ map[string]Rule) Rule {
+	return Rule{rule}
+}
+
 func createRules(lines []string) map[string]Rule {
 	rules = make(map[string]Rule)
 	for i := range lines {
 		createRole(lines[i])
 	}
+	wireUpRecursivePlaceholderValues(rules)
 	return rules
+}
+
+func wireUpRecursivePlaceholderValues(r map[string]Rule) {
+	for ruleKey, ruleValue := range r {
+		r[ruleKey] = ruleValue.wireUpPlaceholder(r)
+	}
 }
 
 var Empty Rule
@@ -96,6 +136,8 @@ func createRole(line string) Rule {
 	key := captureGroups[1]
 	if rules[key] != Empty {
 		return rules[key]
+	} else {
+		rules[key] = Rule{Placeholder{ruleName: key}}
 	}
 	value := createRuleFromSpec(captureGroups[2])
 	rules[key] = value
@@ -115,8 +157,8 @@ func createRuleFromSpec(s string) Rule {
 }
 
 func makeAndGroup(andGroupString string) Rule {
-	trimedAndGroup := strings.TrimSpace(andGroupString)
-	andGroupsStrings := strings.Split(trimedAndGroup, " ")
+	trimmedAndGroup := strings.TrimSpace(andGroupString)
+	andGroupsStrings := strings.Split(trimmedAndGroup, " ")
 	andGroups := make([]Rule, len(andGroupsStrings))
 	for i := range andGroups {
 		if andGroupsStrings[i] == "\"a\"" || andGroupsStrings[i] == "\"b\"" {
