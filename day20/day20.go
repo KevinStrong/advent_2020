@@ -12,6 +12,104 @@ import (
 
 func main() {
 	start := time.Now()
+	solvePart2()
+	fmt.Printf("Execution took %s", time.Since(start))
+}
+
+func solvePart2() {
+	lines := input.ReadLines("day20/finishedBoard.txt")
+	board := convertToTwoDArray(lines)
+	allBoards := generateAllBoardOrientations(board)
+	maxMonstersSeen := 0
+	var markedMonsters map[string]bool
+	for i := range allBoards {
+		monstersSeen, theseMarkedMonsters := countMonsters(allBoards[i])
+		fmt.Println("Found monsters: ", monstersSeen)
+		if monstersSeen > maxMonstersSeen {
+			maxMonstersSeen = monstersSeen
+			markedMonsters = theseMarkedMonsters
+		}
+	}
+	fmt.Println(countUnmarkedMonsters(board, markedMonsters))
+}
+
+func countUnmarkedMonsters(board [][]string, monsterMarker map[string]bool) int {
+	totalHashtags := 0
+	totalSkipped := 0
+	for row := range board {
+		for column := range board[row] {
+			if board[row][column] == "#" && !monsterMarker[strconv.Itoa(row)+":"+strconv.Itoa(column)] {
+				totalHashtags++
+			} else {
+				totalSkipped++
+			}
+		}
+	}
+	fmt.Println("Total Skipped: ", totalSkipped)
+	return totalHashtags
+}
+
+func countMonsters(board [][]string) (int, map[string]bool) {
+	monsterMarker := make(map[string]bool)
+	monsterCount := 0
+	for row := range board {
+		for column := range board[row] {
+			if monsterAtThisSpot(board, row, column) {
+				monsterCount = countMonster(monsterCount, monsterMarker, row, column)
+			}
+		}
+	}
+	return monsterCount, monsterMarker
+}
+
+func countMonster(monsterCount int, monsterMarker map[string]bool, row int, column int) int {
+	monsterCount++
+	xOffsets, yOffsets := getMonsterOffset()
+	for xOffset := range xOffsets {
+		for yOffset := range yOffsets {
+			monsterMarker[strconv.Itoa(row+yOffset)+":"+strconv.Itoa(column+xOffset)] = true
+		}
+	}
+	return monsterCount
+}
+
+func monsterAtThisSpot(board [][]string, row int, column int) bool {
+	xOffset, yOffset := getMonsterOffset()
+	for i := range xOffset {
+		curColumn := column + xOffset[i]
+		curRow := row + yOffset[i]
+		if isValidBoardLocation(curColumn, curRow, board) && board[curRow][curColumn] != "#" {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidBoardLocation(x int, y int, board [][]string) bool {
+	return x > -1 && y > -1 && y < len(board) && x < len(board)
+}
+
+func getMonsterOffset() ([]int, []int) {
+	return []int{0, -18, -13, -12, -7, -6, -1, 0, 1, -17, -14, -11, -8, -5, -2},
+		[]int{0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2}
+}
+
+func generateAllBoardOrientations(board [][]string) [][][]string {
+	boards := make([][][]string, 8)
+	for i := 0; i < 4; i++ {
+		board = rotateTile(board)
+		boards[i] = board
+	}
+	board = flipTile(board)
+	for i := 4; i < 8; i++ {
+		board = rotateTile(board)
+		boards[i] = board
+	}
+	return boards
+}
+
+func _() {
+	start := time.Now()
 	tiles := createTiles(input.ReadLines("day20/input.txt"))
 	orderedTiles := orderTiles(tiles)
 	success, board := findValidBoard(makeEmptyBoard(calculateBoardSize(len(orderedTiles))), orderedTiles, 0, 0)
