@@ -7,15 +7,24 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
-	tiles := createTiles(input.ReadLines("day20/sample_input.txt"))
+	start := time.Now()
+	tiles := createTiles(input.ReadLines("day20/input.txt"))
 	success, board := findValidBoard(makeEmptyBoard(calculateBoardSize(len(tiles))), tiles, 0, 0)
 	if success {
+		for i := range board {
+			for i2 := range board[i] {
+				fmt.Print(board[i][i2].id, ":", board[i][i2].sides[0], " ")
+			}
+			fmt.Println()
+		}
 		product := productOfCornerIds(board)
 		fmt.Println(product)
 	}
+	fmt.Printf("Execution took %s", time.Since(start))
 }
 
 func productOfCornerIds(board [][]Tile) int {
@@ -40,7 +49,7 @@ func calculateBoardSize(i int) int {
 }
 
 func findValidBoard(currentBoard [][]Tile, tiles []Tile, x int, y int) (bool, [][]Tile) {
-	//fmt.Println("Matching on:", x, ":", y)
+	// fmt.Println("Matching on:", x, ":", y)
 	if y == (len(currentBoard)) {
 		return true, currentBoard
 	}
@@ -91,7 +100,6 @@ func doesTileFit(adjacentTiles []Tile, tile Tile) bool {
 	southMatch := adjacentTiles[2].id == Empty.id || (tile.sides[2] == adjacentTiles[2].sides[0])
 	westMatch := adjacentTiles[3].id == Empty.id || (tile.sides[3] == adjacentTiles[3].sides[1])
 	return northMatch && eastMatch && southMatch && westMatch
-
 }
 
 func generateAllTilePositions(tile Tile) []Tile {
@@ -118,7 +126,7 @@ func getAdjacentTiles(x int, y int, board [][]Tile) []Tile {
 }
 
 var Empty = Tile{
-	fullTile: "",
+	fullTile: nil,
 	sides:    nil,
 	id:       0,
 }
@@ -126,33 +134,29 @@ var Empty = Tile{
 func getNorthTile(x int, y int, board [][]Tile) Tile {
 	if y == 0 {
 		return Empty
-	} else {
-		return board[y-1][x]
 	}
+	return board[y-1][x]
 }
 
 func getEastTile(x int, y int, board [][]Tile) Tile {
 	if x == len(board)-1 {
 		return Empty
-	} else {
-		return board[y][x+1]
 	}
+	return board[y][x+1]
 }
 
 func getSouthTile(x int, y int, board [][]Tile) Tile {
 	if y == len(board)-1 {
 		return Empty
-	} else {
-		return board[y+1][x]
 	}
+	return board[y+1][x]
 }
 
 func getWestTile(x int, y int, board [][]Tile) Tile {
 	if x == 0 {
 		return Empty
-	} else {
-		return board[y][x-1]
 	}
+	return board[y][x-1]
 }
 
 func moveToNextTile(x int, y int, board [][]Tile) (int, int) {
@@ -174,41 +178,87 @@ func remove(slice []Tile, s int) []Tile {
 }
 
 type Tile struct {
-	fullTile string
+	fullTile [][]string
 	sides    []int
 	id       int
 }
 
 func (tile Tile) rotate() Tile {
 	return Tile{
-		fullTile: tile.fullTile,
+		fullTile: rotateTile(tile.fullTile),
 		id:       tile.id,
 		sides:    rotate(tile.sides),
 	}
 }
 
+func rotateTile(tile [][]string) [][]string {
+	rotatedTile := make([][]string, len(tile))
+	for rowIndex := range tile {
+		rotatedTile[rowIndex] = make([]string, len(tile))
+		for columnIndex := range tile[rowIndex] {
+			rotatedTile[rowIndex][columnIndex] = tile[len(tile)-columnIndex-1][rowIndex]
+		}
+	}
+	return rotatedTile
+}
+
 func (tile Tile) flip() Tile {
 	return Tile{
-		fullTile: tile.fullTile,
+		fullTile: flipTile(tile.fullTile),
 		id:       tile.id,
 		sides:    flip(tile.sides),
 	}
 }
 
+func flipTile(tile [][]string) [][]string {
+	flippedTile := make([][]string, len(tile))
+	for rowIndex := range tile {
+		flippedTile[rowIndex] = make([]string, len(tile))
+		for columnIndex := range tile[rowIndex] {
+			flippedTile[rowIndex][columnIndex] = tile[rowIndex][len(tile)-columnIndex-1]
+		}
+	}
+	return flippedTile
+}
+
 func flip(sides []int) []int {
 	flipped := make([]int, len(sides))
 	copy(flipped, sides)
-	// todo this only with if there are 4 sides
-	west := flipped[3]
-	flipped[3] = flipped[1]
-	flipped[1] = west
+	flipped[3], flipped[1] = flipped[1], flipped[3]
+	flipped[0] = reverse(flipped[0])
+	flipped[2] = reverse(flipped[2])
 	return flipped
 }
 
 func rotate(nums []int) []int {
+	// top becomes east directly
+	// east becomes south with a shift
+	// south becomes west directly
+	// west becomes top with a shift
 	r := len(nums) - 1
 	nums = append(nums[r:], nums[:r]...)
+	nums[0] = reverse(nums[0])
+	nums[2] = reverse(nums[2])
 	return nums
+}
+
+func reverse(i int) int {
+	// convert to binary
+	binary := strconv.FormatInt(int64(i), 2)
+	reversedBinary := reverseString(binary)
+	parseInt, err := strconv.ParseInt(reversedBinary, 2, 32)
+	if err != nil {
+		panic(err)
+	}
+	return int(parseInt)
+}
+
+func reverseString(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
 }
 
 func createTiles(lines []string) []Tile {
@@ -228,11 +278,22 @@ func createTiles(lines []string) []Tile {
 
 func makeTile(tile []string) Tile {
 	return Tile{
-		fullTile: strings.Join(tile[1:], ""), sides: buildSides(tile[1:]), id: parseId(tile[0]),
+		fullTile: convertToTwoDArray(tile[1:]), sides: buildSides(tile[1:]), id: parseID(tile[0]),
 	}
 }
 
-func parseId(s string) int {
+func convertToTwoDArray(tile []string) [][]string {
+	output := make([][]string, len(tile))
+	for row := range tile {
+		output[row] = make([]string, len(tile))
+		for column := range tile[row] {
+			output[row][column] = string(tile[row][column])
+		}
+	}
+	return output
+}
+
+func parseID(s string) int {
 	var idRegex = regexp.MustCompile(`^Tile (\d+):$`)
 	idString := idRegex.FindStringSubmatch(s)
 	id, err := strconv.Atoi(idString[1])
@@ -254,7 +315,7 @@ func buildSides(tile []string) []int {
 func buildEast(tile []string) int {
 	side := ""
 	for _, row := range tile {
-		side = side + string(row[len(row)-1])
+		side += string(row[len(row)-1])
 	}
 	return convertToDecimal(side)
 }
@@ -262,7 +323,7 @@ func buildEast(tile []string) int {
 func buildWest(tile []string) int {
 	side := ""
 	for _, row := range tile {
-		side = side + string(row[0])
+		side += string(row[0])
 	}
 	return convertToDecimal(side)
 }
