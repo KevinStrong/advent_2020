@@ -12,65 +12,46 @@ import (
 
 func main() {
 	start := time.Now()
-	solvePart2()
+	solvePart2(solvePart1())
 	fmt.Printf("Execution took %s", time.Since(start))
 }
 
-func solvePart2() {
-	lines := input.ReadLines("day20/finishedBoard.txt")
-	board := convertToTwoDArray(lines)
+func solvePart2(board [][]string) {
 	allBoards := generateAllBoardOrientations(board)
 	maxMonstersSeen := 0
-	var markedMonsters map[string]bool
 	for i := range allBoards {
-		monstersSeen, theseMarkedMonsters := countMonsters(allBoards[i])
-		fmt.Println("Found monsters: ", monstersSeen)
+		monstersSeen := countMonsters(allBoards[i])
 		if monstersSeen > maxMonstersSeen {
 			maxMonstersSeen = monstersSeen
-			markedMonsters = theseMarkedMonsters
 		}
 	}
-	fmt.Println(countUnmarkedMonsters(board, markedMonsters))
+	fmt.Println(countHashtags(board) - maxMonstersSeen)
 }
 
-func countUnmarkedMonsters(board [][]string, monsterMarker map[string]bool) int {
+func countHashtags(board [][]string) int {
 	totalHashtags := 0
-	totalSkipped := 0
+	totalMonsters := 0
 	for row := range board {
 		for column := range board[row] {
-			if board[row][column] == "#" && !monsterMarker[strconv.Itoa(row)+":"+strconv.Itoa(column)] {
+			if board[row][column] == "#" {
 				totalHashtags++
-			} else {
-				totalSkipped++
 			}
 		}
 	}
-	fmt.Println("Total Skipped: ", totalSkipped)
+	fmt.Println("Total Skipped: ", totalMonsters)
 	return totalHashtags
 }
 
-func countMonsters(board [][]string) (int, map[string]bool) {
-	monsterMarker := make(map[string]bool)
+func countMonsters(board [][]string) int {
 	monsterCount := 0
 	for row := range board {
 		for column := range board[row] {
 			if monsterAtThisSpot(board, row, column) {
-				monsterCount = countMonster(monsterCount, monsterMarker, row, column)
+				monsterCount++
 			}
 		}
 	}
-	return monsterCount, monsterMarker
-}
-
-func countMonster(monsterCount int, monsterMarker map[string]bool, row int, column int) int {
-	monsterCount++
-	xOffsets, yOffsets := getMonsterOffset()
-	for xOffset := range xOffsets {
-		for yOffset := range yOffsets {
-			monsterMarker[strconv.Itoa(row+yOffset)+":"+strconv.Itoa(column+xOffset)] = true
-		}
-	}
-	return monsterCount
+	return monsterCount * 15
 }
 
 func monsterAtThisSpot(board [][]string, row int, column int) bool {
@@ -78,7 +59,7 @@ func monsterAtThisSpot(board [][]string, row int, column int) bool {
 	for i := range xOffset {
 		curColumn := column + xOffset[i]
 		curRow := row + yOffset[i]
-		if isValidBoardLocation(curColumn, curRow, board) && board[curRow][curColumn] != "#" {
+		if !isValidBoardLocation(curColumn, curRow, board) || board[curRow][curColumn] != "#" {
 			return false
 		}
 	}
@@ -108,19 +89,24 @@ func generateAllBoardOrientations(board [][]string) [][][]string {
 	return boards
 }
 
-func _() {
-	start := time.Now()
+func solvePart1() [][]string {
 	tiles := createTiles(input.ReadLines("day20/input.txt"))
 	orderedTiles := orderTiles(tiles)
 	success, board := findValidBoard(makeEmptyBoard(calculateBoardSize(len(orderedTiles))), orderedTiles, 0, 0)
+	result := make([][]string, 0)
 	if success {
-		for i := range board {
-			printThisRowOfTiles(board[i])
-		}
+		product := productOfCornerIds(board)
+		fmt.Println(product)
+		return printBoardWithOutTheBorders(board, result)
 	}
-	product := productOfCornerIds(board)
-	fmt.Println(product)
-	fmt.Printf("Execution took %s", time.Since(start))
+	return make([][]string, 0)
+}
+
+func printBoardWithOutTheBorders(board [][]Tile, result [][]string) [][]string {
+	for i := range board {
+		result = append(result, printThisRowOfTilesWithOutTheBorders(board[i])...)
+	}
+	return result
 }
 
 func orderTiles(tiles []Tile) []Tile {
@@ -154,17 +140,23 @@ func getTileByID(tiles []Tile, id int) Tile {
 	panic(id)
 }
 
-func printThisRowOfTiles(tiles []Tile) {
-	numberOfTiles := len(tiles)
-	numberOfRowsInTile := len(tiles[0].fullTile)
-	for row := 0; row < numberOfRowsInTile; row++ {
-		for eachTile := 0; eachTile < numberOfTiles; eachTile++ {
-			for _, value := range tiles[eachTile].fullTile[row] {
+func printThisRowOfTilesWithOutTheBorders(tiles []Tile) [][]string {
+	board := make([][]string, 0)
+	completeRow := make([]string, 0)
+	// Skip the top row and bottom row of the tile, these are the borders
+	for row := 1; row < len(tiles[0].fullTile)-1; row++ {
+		for eachTile := 0; eachTile < len(tiles); eachTile++ {
+			for column := 1; column < len(tiles[0].fullTile)-1; column++ {
+				value := tiles[eachTile].fullTile[row][column]
 				fmt.Print(value)
+				completeRow = append(completeRow, value)
 			}
 		}
+		board = append(board, completeRow)
+		completeRow = make([]string, 0)
 		fmt.Println()
 	}
+	return board
 }
 
 func productOfCornerIds(board [][]Tile) int {
@@ -189,7 +181,6 @@ func calculateBoardSize(i int) int {
 }
 
 func findValidBoard(currentBoard [][]Tile, tiles []Tile, x int, y int) (bool, [][]Tile) {
-	// fmt.Println("Matching on:", x, ":", y)
 	if y == (len(currentBoard)) {
 		return true, currentBoard
 	}
