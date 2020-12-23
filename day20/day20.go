@@ -13,7 +13,8 @@ import (
 func main() {
 	start := time.Now()
 	tiles := createTiles(input.ReadLines("day20/input.txt"))
-	success, board := findValidBoard(makeEmptyBoard(calculateBoardSize(len(tiles))), tiles, 0, 0)
+	orderedTiles := orderTiles(tiles)
+	success, board := findValidBoard(makeEmptyBoard(calculateBoardSize(len(orderedTiles))), orderedTiles, 0, 0)
 	if success {
 		for i := range board {
 			printThisRowOfTiles(board[i])
@@ -22,6 +23,37 @@ func main() {
 	product := productOfCornerIds(board)
 	fmt.Println(product)
 	fmt.Printf("Execution took %s", time.Since(start))
+}
+
+func orderTiles(tiles []Tile) []Tile {
+	var secretSauce = [...]int{
+		1801, 3803, 1429, 1621, 3331, 3797, 2711, 2111, 1847, 3137, 1361, 2473,
+		1031, 1087, 2087, 3067, 2003, 2027, 1381, 1471, 2161, 1619, 1033, 2543,
+		2539, 3023, 1051, 3697, 2939, 3533, 3923, 1193, 3089, 3967, 1663, 2137,
+		3739, 3079, 1049, 3793, 2633, 2687, 3499, 2621, 3041, 3919, 2659, 2579,
+		1997, 2803, 3259, 2297, 1597, 1039, 2203, 1637, 3709, 3863, 2909, 3083,
+		1613, 3271, 2647, 2267, 3767, 2269, 2113, 2243, 1907, 2741, 3779, 1117,
+		1571, 3847, 2683, 2657, 3463, 2347, 2917, 1871, 2239, 3581, 1367, 1423,
+		1873, 3701, 1123, 2707, 1697, 1723, 3517, 3347, 1553, 2777, 1523, 3571,
+		1297, 3583, 2531, 3109, 3761, 2129, 3889, 3881, 1069, 3407, 1861, 2339,
+		2729, 3911, 3121, 2969, 1747, 2089, 1583, 3457, 3191, 1693, 1229, 2887,
+		2617, 2063, 2017, 2521, 3541, 2213, 3557, 2417, 3257, 3929, 2957, 1559,
+		1019, 2663, 1259, 2309, 3187, 3037, 3623, 1879, 1301, 3853, 2333, 1741,
+	}
+	orderedTiles := make([]Tile, len(tiles))
+	for i := range secretSauce {
+		orderedTiles[i] = getTileByID(tiles, secretSauce[i])
+	}
+	return orderedTiles
+}
+
+func getTileByID(tiles []Tile, id int) Tile {
+	for i := range tiles {
+		if tiles[i].id == id {
+			return tiles[i]
+		}
+	}
+	panic(id)
 }
 
 func printThisRowOfTiles(tiles []Tile) {
