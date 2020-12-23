@@ -16,15 +16,25 @@ func main() {
 	success, board := findValidBoard(makeEmptyBoard(calculateBoardSize(len(tiles))), tiles, 0, 0)
 	if success {
 		for i := range board {
-			for i2 := range board[i] {
-				fmt.Print(board[i][i2].id, ":", board[i][i2].sides[0], " ")
-			}
-			fmt.Println()
+			printThisRowOfTiles(board[i])
 		}
-		product := productOfCornerIds(board)
-		fmt.Println(product)
 	}
+	product := productOfCornerIds(board)
+	fmt.Println(product)
 	fmt.Printf("Execution took %s", time.Since(start))
+}
+
+func printThisRowOfTiles(tiles []Tile) {
+	numberOfTiles := len(tiles)
+	numberOfRowsInTile := len(tiles[0].fullTile)
+	for row := 0; row < numberOfRowsInTile; row++ {
+		for eachTile := 0; eachTile < numberOfTiles; eachTile++ {
+			for _, value := range tiles[eachTile].fullTile[row] {
+				fmt.Print(value)
+			}
+		}
+		fmt.Println()
+	}
 }
 
 func productOfCornerIds(board [][]Tile) int {
