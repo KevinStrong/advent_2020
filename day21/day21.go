@@ -4,14 +4,14 @@ import (
 	"advent_2020/input"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 func main() {
-	allergies, _, recipes := parseInput(input.ReadLines("day21/input.txt"))
+	allergies, recipes := parseInput(input.ReadLines("day21/input.txt"))
 	fmt.Println(allergies)
-	// fmt.Println(allIngredients)
 	allergyToIngredient := make(map[string]string)
 	ingredientsWithAllergies := make(map[string]bool)
 
@@ -24,6 +24,22 @@ func main() {
 		}
 	}
 	fmt.Println(countRemainingIngredients(recipes, ingredientsWithAllergies))
+	fmt.Println(sortByAllergyName(allergyToIngredient))
+}
+
+func sortByAllergyName(allergiesToIngredients map[string]string) string {
+	allergies := make([]string, len(allergiesToIngredients))
+	i := 0
+	for key := range allergiesToIngredients {
+		allergies[i] = key
+		i++
+	}
+	sort.Strings(allergies)
+	ingredients := make([]string, len(allergies))
+	for i2 := range allergies {
+		ingredients[i2] = allergiesToIngredients[allergies[i2]]
+	}
+	return strings.Join(ingredients, ",")
 }
 
 func countRemainingIngredients(recipes [][]string, ingredientsWithAllergies map[string]bool) int {
@@ -108,8 +124,7 @@ func createIntersection(first []string, second []string) []string {
 	return result
 }
 
-func parseInput(lines []string) (map[string][][]string, []string, [][]string) {
-	allIngredients := make(map[string]bool)
+func parseInput(lines []string) (map[string][][]string, [][]string) {
 	allRecipies := make([][]string, 0)
 	allergies := make(map[string][][]string)
 	for i := range lines {
@@ -118,11 +133,10 @@ func parseInput(lines []string) (map[string][][]string, []string, [][]string) {
 		if len(captureGroups) != 3 {
 			panic(strconv.Itoa(len(captureGroups)) + lines[i])
 		}
-		addToIngredientList(allIngredients, captureGroups[1])
 		addToAllergyMap(allergies, captureGroups[1:])
 		allRecipies = addToRecipeList(allRecipies, captureGroups[1])
 	}
-	return allergies, convertToList(allIngredients), allRecipies
+	return allergies, allRecipies
 }
 
 func addToRecipeList(recipes [][]string, s string) [][]string {
@@ -130,34 +144,11 @@ func addToRecipeList(recipes [][]string, s string) [][]string {
 	return append(recipes, recipe)
 }
 
-func convertToList(ingredients map[string]bool) []string {
-	list := make([]string, len(ingredients))
-	i := 0
-	for s := range ingredients {
-		list[i] = s
-		i++
-	}
-	return list
-}
-
 func addToAllergyMap(allergies map[string][][]string, ingredientsAndAllergies []string) {
 	// for every allergy, add a new entry to the allergies map with all the ingredients
 	ingredientsToAdd := strings.Split(ingredientsAndAllergies[0], " ")
 	allergiesToAdd := strings.Split(ingredientsAndAllergies[1], ", ")
 	for _, currentAllergy := range allergiesToAdd {
-		allergies[currentAllergy] = append(allergies[currentAllergy], makeACopy(ingredientsToAdd))
-	}
-}
-
-func makeACopy(add []string) []string {
-	theCopy := make([]string, len(add))
-	copy(theCopy, add)
-	return theCopy
-}
-
-func addToIngredientList(ingredients map[string]bool, s string) {
-	ingredientsToAdd := strings.Split(s, " ")
-	for i := range ingredientsToAdd {
-		ingredients[ingredientsToAdd[i]] = true
+		allergies[currentAllergy] = append(allergies[currentAllergy], ingredientsToAdd)
 	}
 }
