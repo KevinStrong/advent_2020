@@ -9,20 +9,92 @@ import (
 
 func main() {
 	crabDeck, yourDeck := buildDecks(input.ReadLines("day22/input.txt"))
-	i := 1
+	playGame(crabDeck, yourDeck)
+}
+
+func playGame(deck []int, deck2 []int) {
+	crabDeck, yourDeck := playRecursiveGame(deck, deck2, 0)
+	_ = scoreDecks(crabDeck, yourDeck)
+
+}
+
+func playRecursiveGame(crabDeck []int, yourDeck []int, recurseLevel int) ([]int, []int) {
+	cache := make(map[string]bool)
 	for len(crabDeck) != 0 && len(yourDeck) != 0 {
-		fmt.Println("Round: ", i)
-		crabDeck, yourDeck = playOneRound(crabDeck, yourDeck)
-		i++
+		// fmt.Println("Crab Deck:", crabDeck)
+		// fmt.Println("Your Deck", yourDeck)
+		repeat := checkForRepeat(crabDeck, yourDeck, cache)
+		if repeat {
+			// fmt.Println("Repeat detected")
+			// fmt.Println("Player 1 score: " + strconv.Itoa(scoreDeck(crabDeck)))
+			// Return an fake value to signal that crab wins
+			return make([]int, 1), make([]int, 0)
+		}
+		crabTop, yourTop := peekTop(crabDeck, yourDeck)
+		crabDeck, yourDeck = removeTopCards(crabDeck, yourDeck)
+
+		var crabWin bool
+		if len(crabDeck) >= crabTop && len(yourDeck) >= yourTop {
+			// fmt.Println("Recursing: ", recurseLevel + 1)
+			recursiveCrabDeck, _ := playRecursiveGame(copyDeck(crabDeck[:crabTop]), copyDeck(yourDeck[:yourTop]), recurseLevel+1)
+			crabWin = len(recursiveCrabDeck) > 0
+		} else {
+			crabWin = crabTop > yourTop
+		}
+
+		// Give cards to winner
+		if crabWin {
+			crabDeck = append(crabDeck, crabTop, yourTop)
+		} else {
+			yourDeck = append(yourDeck, yourTop, crabTop)
+		}
 	}
-	fmt.Println(crabDeck)
-	fmt.Println(yourDeck)
+	return crabDeck, yourDeck
+}
+
+func checkForRepeat(deck []int, deck2 []int, cache map[string]bool) bool {
+	hash := buildHashForDecks(deck, deck2)
+	isFound := cache[hash]
+	cache[hash] = true
+	return isFound
+
+}
+
+func buildHashForDecks(deck []int, deck2 []int) string {
+	var hash = ""
+	for _, value := range deck {
+		hash += strconv.Itoa(value) + ":"
+	}
+	hash += ";"
+	for _, value := range deck2 {
+		hash += strconv.Itoa(value) + ":"
+	}
+	return hash
+}
+
+func removeTopCards(deck []int, deck2 []int) ([]int, []int) {
+	return deck[1:], deck2[1:]
+}
+
+func peekTop(deck []int, deck2 []int) (int, int) {
+	return deck[0], deck2[0]
+}
+
+func copyDeck(original []int) []int {
+	copyDeck := make([]int, len(original))
+	copy(copyDeck, original)
+	return copyDeck
+}
+
+func scoreDecks(crabDeck []int, yourDeck []int) int {
+	var score int
 	if len(crabDeck) > 0 {
-		fmt.Println("Crab Score: ", scoreDeck(crabDeck))
+		score = scoreDeck(crabDeck)
 	} else {
-		fmt.Println("Your Score: ", scoreDeck(yourDeck))
+		score = scoreDeck(yourDeck)
 	}
-	fmt.Println()
+	fmt.Println("Score: ", score)
+	return score
 }
 
 func scoreDeck(deck []int) int {
@@ -34,23 +106,6 @@ func scoreDeck(deck []int) int {
 		multiplier++
 	}
 	return score
-}
-
-func playOneRound(deck1 []int, deck2 []int) ([]int, []int) {
-	top1 := deck1[0]
-	top2 := deck2[0]
-	deck1 = deck1[1:]
-	deck2 = deck2[1:]
-	if top1 > top2 {
-		deck1 = append(deck1, top1, top2)
-	}
-	if top2 > top1 {
-		deck2 = append(deck2, top2, top1)
-	}
-	if top1 == top2 {
-		panic(top1)
-	}
-	return deck1, deck2
 }
 
 func buildDecks(lines []string) ([]int, []int) {
