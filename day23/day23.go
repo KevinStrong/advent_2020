@@ -1,25 +1,53 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Cup struct {
 	value int
 	right *Cup
 }
 
+var numberOfCups = 1000000
+
+//var numberOfCups = 9
+var numberOfRound = 10000000
+
+//var numberOfRound = 10
+var valueToCupMap = make(map[int]*Cup, numberOfCups)
+
 func main() {
-	// My Input
-	calculateCups(buildCups([]int{3, 6, 8, 1, 9, 5, 7, 4, 2}))
-	// Sample Input
-	//calculateCups(buildCups([]int{3,8,9,1,2,5,4,6,7}))
+	// Example order
+	// startingOrder := []int{3, 8, 9, 1, 2, 5, 4, 6, 7}
+	startingOrder := []int{3, 6, 8, 1, 9, 5, 7, 4, 2}
+	calculateCups(buildCups(startingOrder))
+	fmt.Println("Product:", multiplyTwoCupsAfterCupOne())
+}
+
+func multiplyTwoCupsAfterCupOne() int {
+	cupOne := findCupOne()
+	firstCup := cupOne.right
+	fmt.Println("First Cup: ", firstCup.value)
+	secondCup := firstCup.right
+	fmt.Println("Second Cup: ", secondCup.value)
+	return firstCup.value * secondCup.value
+}
+
+func findCupOne() *Cup {
+	cup := valueToCupMap[1]
+	return cup
 }
 
 func buildCups(cupValues []int) *Cup {
 	firstCup := buildCup(cupValues[0])
+	valueToCupMap[firstCup.value] = firstCup
 	previousCup := firstCup
 	var nextCup *Cup
-	for i := 1; i < len(cupValues); i++ {
-		nextCup = buildCup(cupValues[i])
+	for i := 1; i < numberOfCups; i++ {
+		nextCup = buildCup(getCupValue(i, cupValues))
+		valueToCupMap[nextCup.value] = nextCup
 		(*previousCup).right = nextCup
 		previousCup = nextCup
 	}
@@ -31,11 +59,18 @@ func buildCups(cupValues []int) *Cup {
 	return firstCup
 }
 
+func getCupValue(i int, values []int) int {
+	if i < len(values) {
+		return values[i]
+	}
+	return i + 1
+}
+
 func buildCup(i int) *Cup {
 	return &Cup{value: i}
 }
 
-func printCups(cup *Cup) {
+func _(cup *Cup) {
 	var firstCup = cup
 	fmt.Print(cup.value)
 	cup = cup.right
@@ -47,13 +82,9 @@ func printCups(cup *Cup) {
 }
 
 func calculateCups(currentCup *Cup) *Cup {
-	fmt.Println("Starting Order: ")
-	printCups(currentCup)
 	moveCount := 1
-	for moveCount <= 100 {
-		fmt.Println("Round: ", moveCount)
+	for moveCount <= numberOfRound {
 		currentCup = performOneRound(currentCup)
-		printCups(currentCup)
 		moveCount++
 	}
 	return currentCup
@@ -81,37 +112,28 @@ func performOneRound(currentCup *Cup) *Cup {
 func findDestinationCup(current *Cup, ignoreList []*Cup) *Cup {
 	destination := findHighestCupLowerThatCurrent(current, ignoreList)
 	if destination == nil {
-		destination = findHighestCup(current, ignoreList)
+		destination = findHighestCup(ignoreList)
 	}
 	return destination
 }
 
-func findHighestCup(current *Cup, ignoreList []*Cup) *Cup {
-	trackingCup := current.right
-	var destinationCup *Cup
-	for trackingCup != current {
-		if !contains(trackingCup, ignoreList) {
-			if destinationCup == nil || destinationCup.value < trackingCup.value {
-				destinationCup = trackingCup
-			}
+func findHighestCup(ignoreList []*Cup) *Cup {
+	for currentValue := numberOfCups; currentValue > 0; currentValue-- {
+		if !contains(valueToCupMap[currentValue], ignoreList) {
+			return valueToCupMap[currentValue]
 		}
-		trackingCup = trackingCup.right
 	}
-	return destinationCup
+	panic("There should always be a highest cup: " + strconv.Itoa(len(ignoreList)))
 }
 
 func findHighestCupLowerThatCurrent(current *Cup, ignoreList []*Cup) *Cup {
-	trackingCup := current.right
-	var destinationCup *Cup
-	for trackingCup != current {
-		if !contains(trackingCup, ignoreList) {
-			if trackingCup.value < current.value && (destinationCup == nil || trackingCup.value > destinationCup.value) {
-				destinationCup = trackingCup
-			}
+	currentValue := current.value
+	for currentValue := currentValue - 1; currentValue > 0; currentValue-- {
+		if !contains(valueToCupMap[currentValue], ignoreList) {
+			return valueToCupMap[currentValue]
 		}
-		trackingCup = trackingCup.right
 	}
-	return destinationCup
+	return nil
 }
 
 func contains(cup *Cup, list []*Cup) bool {
